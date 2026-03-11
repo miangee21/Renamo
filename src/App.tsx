@@ -13,15 +13,20 @@ import {
   Moon,
   FolderSearch,
   X,
+  RefreshCw,
 } from "lucide-react";
 
 export default function App() {
-  const [dark, setDark] = useState(true);
+  const [dark, setDark] = useState(
+    () => localStorage.getItem("renamo-theme") !== "light"
+  );
 
   const toggleTheme = () => {
     setDark((d) => {
-      document.documentElement.classList.toggle("dark", !d);
-      return !d;
+      const newDark = !d;
+      document.documentElement.classList.toggle("dark", newDark);
+      localStorage.setItem("renamo-theme", newDark ? "dark" : "light");
+      return newDark;
     });
   };
 
@@ -47,18 +52,18 @@ export default function App() {
 
   const handleRename = async () => {
     if (!folderPath) return;
+    setShowRenameConfirm(false);
     const success = await executeRename(folderPath, previews);
     if (success) {
       await loadFiles(folderPath);
-      toast.success(`${previews.length} Files renamed successfully`);
+      toast.success(`${previews.length} files renamed successfully`);
     } else {
-      toast.error("Rename failed");
+      toast.error("Rename failed — check console");
     }
   };
 
-  const [isUndoing, setIsUndoing] = useState(false);
-
-  const handleUndo = async () => {
+  const handleUndoConfirmed = async () => {
+    setShowUndoConfirm(false);
     if (isUndoing) return;
     setIsUndoing(true);
     const success = await undoLast(() => folderPath && loadFiles(folderPath));
@@ -68,6 +73,14 @@ export default function App() {
       toast.error("Undo failed");
     }
     setIsUndoing(false);
+  };
+
+  const [isUndoing, setIsUndoing] = useState(false);
+  const [showRenameConfirm, setShowRenameConfirm] = useState(false);
+  const [showUndoConfirm, setShowUndoConfirm] = useState(false);
+
+  const handleRefresh = async () => {
+    if (folderPath) await loadFiles(folderPath);
   };
 
   return (
@@ -107,15 +120,16 @@ export default function App() {
                 )}
               </button>
 
-              {/* Undo */}
-              {log.length > 0 && (
+              {/* Refresh */}
+              {folderPath && (
                 <button
-                  onClick={handleUndo}
-                  disabled={isUndoing}
-                  className="h-8 px-3 rounded-xl glass flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  onClick={handleRefresh}
+                  disabled={isLoading}
+                  className="w-8 h-8 rounded-xl glass flex items-center justify-center text-muted-foreground hover:text-foreground transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <Undo2 className="w-3.5 h-3.5" />
-                  Undo
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`}
+                  />
                 </button>
               )}
 
@@ -223,13 +237,26 @@ export default function App() {
                         className="w-12 text-xs text-center bg-transparent focus:outline-none font-mono text-foreground"
                       />
                     </div>
+                    {/* Rename button */}
                     <button
-                      onClick={handleRename}
+                      onClick={() => setShowRenameConfirm(true)}
                       disabled={isRenaming || previews.length === 0}
                       className="h-8 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95 shadow-sm shadow-primary/30"
                     >
                       {isRenaming ? "Renaming..." : `Rename ${previews.length}`}
                     </button>
+
+                    {/* Undo button — rename ke saath */}
+                    {log.length > 0 && (
+                      <button
+                        onClick={() => setShowUndoConfirm(true)}
+                        disabled={isUndoing}
+                        className="h-8 px-3 rounded-xl glass border border-border flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <Undo2 className="w-3.5 h-3.5" />
+                        Undo
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -289,6 +316,79 @@ export default function App() {
           )}
         </div>
       </div>
+
+      {/* ── Rename Confirmation Dialog ── */}
+      {showRenameConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-background/60 backdrop-blur-sm"
+            onClick={() => setShowRenameConfirm(false)}
+          />
+          <div className="glass relative rounded-2xl p-6 w-80 flex flex-col gap-4 shadow-xl border border-border">
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-semibold text-foreground">
+                Rename {previews.length} files?
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Files will be renamed starting from{" "}
+                <span className="text-foreground font-mono">{startNumber}</span>
+                . You can undo this after.
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowRenameConfirm(false)}
+                className="h-8 px-4 rounded-xl glass border border-border text-xs text-muted-foreground hover:text-foreground transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRename}
+                className="h-8 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all"
+              >
+                Yes, Rename
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Undo Confirmation Dialog ── */}
+      {showUndoConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-background/60 backdrop-blur-sm"
+            onClick={() => setShowUndoConfirm(false)}
+          />
+          <div className="glass relative rounded-2xl p-6 w-80 flex flex-col gap-4 shadow-xl border border-border">
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-semibold text-foreground">
+                Undo last rename?
+              </p>
+              <p className="text-xs text-muted-foreground">
+                <span className="text-foreground font-mono">
+                  {log[0]?.count}
+                </span>{" "}
+                files will be restored to their original names.
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowUndoConfirm(false)}
+                className="h-8 px-4 rounded-xl glass border border-border text-xs text-muted-foreground hover:text-foreground transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUndoConfirmed}
+                className="h-8 px-4 rounded-xl bg-destructive/90 text-white text-xs font-medium hover:opacity-90 transition-all"
+              >
+                Yes, Undo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
