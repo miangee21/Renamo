@@ -65,6 +65,9 @@ pub fn rename_files(request: RenameRequest) -> Result<String, String> {
 
     // PS1 file run karo — Windows ya Linux
     #[cfg(target_os = "windows")]
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
     let output = Command::new("powershell")
         .args([
             "-NoProfile",
@@ -74,6 +77,7 @@ pub fn rename_files(request: RenameRequest) -> Result<String, String> {
             "-File",
             script_path.to_str().unwrap(),
         ])
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .map_err(|e| format!("Failed to run PowerShell: {}", e))?;
 
