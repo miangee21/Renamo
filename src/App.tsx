@@ -11,6 +11,7 @@ import { FileTable } from "./components/FileTable";
 import { AboutModal } from "./components/AboutModal";
 import { RenameDialog } from "./components/RenameDialog";
 import { UndoDialog } from "./components/UndoDialog";
+import { check } from "@tauri-apps/plugin-updater";
 import { toast } from "sonner";
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
   const [showRenameConfirm, setShowRenameConfirm] = useState(false);
   const [showUndoConfirm, setShowUndoConfirm] = useState(false);
   const [isUndoing, setIsUndoing] = useState(false);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [startNumber, setStartNumber] = useState(1);
 
   const {
@@ -52,6 +54,27 @@ export default function App() {
 
   const handleRefresh = async () => {
     if (folderPath) await loadFiles(folderPath);
+  };
+
+  const handleCheckUpdate = async () => {
+    setIsCheckingUpdate(true);
+    try {
+      const update = await check();
+      if (update?.available) {
+        toast(`Update v${update.version} available!`, {
+          description: "Downloading and installing...",
+          duration: 4000,
+        });
+        await update.downloadAndInstall();
+        toast.success("Update installed! Restart to apply.");
+      } else {
+        toast.success("You're on the latest version!");
+      }
+    } catch {
+      toast.error("Update check failed");
+    } finally {
+      setIsCheckingUpdate(false);
+    }
   };
 
   const handleRename = async () => {
@@ -192,7 +215,13 @@ export default function App() {
         </div>
       </div>
 
-      {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
+      {showAbout && (
+        <AboutModal
+          onClose={() => setShowAbout(false)}
+          onCheckUpdate={handleCheckUpdate}
+          isCheckingUpdate={isCheckingUpdate}
+        />
+      )}
       {showRenameConfirm && (
         <RenameDialog
           count={previews.length}

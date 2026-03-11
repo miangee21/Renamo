@@ -1,12 +1,18 @@
 // src/components/AboutModal.tsx
-import { X, FolderIcon } from "lucide-react";
+import { X, FolderIcon, Download } from "lucide-react";
 import { open } from "@tauri-apps/plugin-shell";
 
 interface Props {
   onClose: () => void;
+  onCheckUpdate: () => void;
+  isCheckingUpdate: boolean;
 }
 
-export function AboutModal({ onClose }: Props) {
+export function AboutModal({
+  onClose,
+  onCheckUpdate,
+  isCheckingUpdate,
+}: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
@@ -64,6 +70,18 @@ export function AboutModal({ onClose }: Props) {
             </div>
           ))}
         </div>
+
+        {/* Check for updates */}
+        <button
+          onClick={onCheckUpdate}
+          disabled={isCheckingUpdate}
+          className="w-full h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-medium flex items-center justify-center gap-2 hover:bg-primary/15 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <Download
+            className={`w-3.5 h-3.5 ${isCheckingUpdate ? "animate-bounce" : ""}`}
+          />
+          {isCheckingUpdate ? "Checking..." : "Check for Updates"}
+        </button>
 
         {/* Divider */}
         <div className="border-t border-border" />
